@@ -23,7 +23,7 @@ void send_html(int new_sock);
 int confirm_html(char *con_html);
 void display_time();
 
-char *g_data;
+char g_data[] = "hey";
 void server(int argc, char **argv)
 {
 	char ipAddr[16]; 
@@ -69,12 +69,9 @@ void server(int argc, char **argv)
 	x = confirm_html(con_html);
 	system("clear");
 
-	printf("Listenting on port: %d\n", port);
-#if 0
-    printf("Before\n");
-    generate_html(g_data);
-    printf("After\n");
-#endif
+
+
+
 	while(1){
 		struct sockaddr_in client;
 		int client_len = sizeof(client);
@@ -82,7 +79,6 @@ void server(int argc, char **argv)
 
 		fp = fopen(SERVER_LOG, "w");
 
-		printf("%s%s%s\n", KCYN, lines, KWHT);
 		fprintf(fp, "%s\n", lines);
 
 
@@ -105,16 +101,18 @@ void server(int argc, char **argv)
 		fprintf(fp, "\n[+]Socket accept with %s successful!\n", inet_ntoa(client.sin_addr));
 
 
-		if(x == 0){
-			send_html(new_sock);
-		}
 
         while(1){
-		    if(send_message(new_sock, message, client));
+//            send_html(new_sock);
+
+		    if(send_message(new_sock, message, client) < 1)break;
 	
-		    if(recv_message(new_sock, client, lines));
+		    if(recv_message(new_sock, client, lines) < 1)break;
+            
+            generate_html(g_data);
 
         }
+
 
 	}
 		fclose(fp);
@@ -164,7 +162,7 @@ int confirm_message(char *confirm, char *message)
 		printf("Enter message\n>");
 		scanf("%s", message);
 	} else {
-		message = "Hello from server";
+		strcpy(message, "Hello from server\n");
 	}
     message = (char*)realloc(message, strlen(message));
 	return 0;
@@ -224,7 +222,7 @@ int recv_message(int new_sock, struct sockaddr_in client, char *lines)
 		printf("%s[+]%sMessage Received from %s\n",KGRN, KWHT, inet_ntoa(client.sin_addr));
 		printf("%sData: %s%s\n",KCYN, data, KWHT);
 		//printf("%s%s%s\n", KCYN, lines, KWHT);
-        g_data = data;
+        //g_data = data;
 		return 1;
 }
 
@@ -234,7 +232,7 @@ void send_html(int new_sock)
 	FILE *fp = NULL;
 	char data[SIZE];
 
-	fp = fopen(INDEX_FILE, "r");
+	fp = fopen("Files/home.html", "r");
 	if(fp == NULL)
 		printf("%s[x]%sCould not find html file\n", KRED, KWHT);
 
@@ -251,7 +249,6 @@ void send_html(int new_sock)
 		}
 	}
 	printf("%s[+]%sHTML File Sent\n", KGRN, KWHT);
-	fclose(fp);
 }
 
 void display_time()

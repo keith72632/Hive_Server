@@ -5,11 +5,24 @@ int generate_html(char * g_data)
 {
     FILE *fp = NULL; 
 
-    fp = fopen(HTML_FILE, "w");
+    fp = fopen("Files/home.html", "w");
 
-    fprintf(fp, "%s", "<!DOCTYPE HTML>\n<html><title>Hello World</title><html>");
+    if(fp == NULL)
+    {
+        printf("Cannot open file\n");
+        return -1;
+    }
+
+    if(fprintf(fp, "HTTP/1.1 200 OK\nContent-Length: 10000\nContent-Type: text/html\n\n<!DOCTYPE HTML>\n<html><title>%s</title></html>", 
+                g_data) <= 0)
+    {
+        printf("fprintf error\n");
+        fclose(fp);
+        return -1;   
+    };
 
     fclose(fp);
 
     return 1;
 }
+ 
