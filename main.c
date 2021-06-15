@@ -10,6 +10,6 @@
 
 int main(int argc, char **argv)
 {
-    server();
+    serverInit(argc, argv);
     return 0;
 }
