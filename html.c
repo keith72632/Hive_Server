@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "includes/html.h"
 
-int generate_html(char * g_data)
+int generateHtml(char * g_data)
 {
     FILE *fp = NULL; 
 

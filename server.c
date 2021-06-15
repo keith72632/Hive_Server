@@ -16,11 +16,7 @@
 void prompt(char *ipAddr, int *port);
 void bindSocket(int sock, int port, char *ipAddr, int *server_addr_len);
 int confirm_message(char *confirm, char *message);
-int send_message(int new_sock, char *message, struct sockaddr_in client);
-int recv_message(int new_sock, struct sockaddr_in client, char *lines);
-void send_html(int new_sock);
 int confirm_html(char *con_html);
-void display_time();
 void initClientSockets(int num_clients, int *clients);
 void socketOptionReuseAddr(int master_socket, int option);
 void initMasterSocket(int *master_sock);
@@ -65,7 +61,7 @@ void serverInit(int argc, char **argv)
     serverListen(master_sock, port, 3);
 
 	while(1){
-        clientSocketInit(master_sock, new_sock); 
+        clientSocketInit(master_sock, new_sock, max_clients, client_socket); 
 	}
 	
 	close(new_sock);
@@ -141,7 +137,7 @@ void serverListen(int master_sock, int port, const int pending)
         exit(EXIT_FAILURE);
     }
 
-    printf("%sListening on port: %d\n%s", KYEL, port, KWHT);
+    printf("%sListening on port: %d%s\n", KYEL, port, KWHT);
 }
 
 int confirm_message(char *confirm, char *message)
