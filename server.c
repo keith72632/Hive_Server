@@ -3,9 +3,11 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
 #include <time.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include "includes/colors.h"
 #include "includes/html.h"
 
@@ -13,21 +15,27 @@
 #define INDEX_FILE "Files/index.html"
 #define SIZE 11000
 #define SERVER_LOG "Files/server_logs.txt"
+#define TRUE 1
+#define FALSE 0
 
 void prompt(char *ipAddr, int *port);
-int bind_socket(int sock, int port, char *ipAddr);
+void bindSocket(int sock, int port, char *ipAddr, int *server_addr_len);
 int confirm_message(char *confirm, char *message);
 int send_message(int new_sock, char *message, struct sockaddr_in client);
 int recv_message(int new_sock, struct sockaddr_in client, char *lines);
 void send_html(int new_sock);
 int confirm_html(char *con_html);
 void display_time();
+void initClientSockets(int num_clients, int *clients);
+void socketOptionReuseAddr(int master_socket, int option);
+void initMasterSocket(int *master_sock);
+void serverListen(int master_sock, int port, const int pending);
 
 char g_data[] = "hey";
 void server(int argc, char **argv)
 {
 	char ipAddr[16]; 
-	int sock, new_sock, port=0, x, b;
+	int master_sock, new_sock, port=0, x, b, server_addr_len, client_socket[30], max_clients=30, opt=TRUE;
 	int *ptr = &port;
 	char *lines = "*****************************************************************";
 	char confirm[3];
@@ -44,45 +52,42 @@ void server(int argc, char **argv)
 	    prompt(ipAddr, ptr);
     }
 
-	sock = socket(AF_INET, SOCK_STREAM, 0);
+    initClientSockets(max_clients, client_socket);
 
-	if(sock < 0){
-		printf("%sError Creating Socket%s\n", KRED, KWHT);
-	}
+    initMasterSocket(&master_sock);
 
-	system("clear");
+    socketOptionReuseAddr(master_sock, opt);
+    
+    system("clear");
 
-	printf("\n%s[+]%sSocket creating successful\n", KGRN, KWHT);
-
-
-	b = bind_socket(sock, port, ipAddr);
-
-	if(b < 0)
-		printf("%s[x]%sError binding socket\n", KRED, KWHT);
-
-	printf("%s\n", lines);
-	printf("%s%s%s\n", KCYN, lines, KWHT);
-
-	listen(sock, 3);
+    bindSocket(master_sock, port, ipAddr, &server_addr_len);
 
 	confirm_message(confirm, message);
-	x = confirm_html(con_html);
-	system("clear");
+	
+    confirm_html(con_html);
+	
+    system("clear");
 
-
-
+    serverListen(master_sock, port, 3);
 
 	while(1){
+        fd_set readfds;
 		struct sockaddr_in client;
+        int max_sd;
 		int client_len = sizeof(client);
         char *name;
 
 		fp = fopen(SERVER_LOG, "w");
 
 		fprintf(fp, "%s\n", lines);
+        //clear socket set
+        FD_ZERO(&readfds);
+        
+        //add master socket to set
+        FD_SET(master_sock, &readfds);
+        max_sd = master_sock;
 
-
-		new_sock = accept(sock, (struct sockaddr *)&client, (socklen_t *)&client_len);
+		new_sock = accept(master_sock, (struct sockaddr *)&client, (socklen_t *)&client_len);
 		if(new_sock < 0){
 			printf("%sSocket accept unsuccessful%s\n", KRED, KWHT);
 			fprintf(fp, "Socket accept unsuccessful\n");
@@ -134,9 +139,36 @@ void prompt(char *ipAddr, int *port)
 	}
 }
 
-int bind_socket(int sock, int port, char *ipAddr)
+void initClientSockets(int num_clients, int *clients)
 {
-	int x = -1;
+    for(int i = 0; i < num_clients; i ++)
+        clients[i] = 0;    
+}
+
+void initMasterSocket(int *master_sock)
+{
+    int sock;
+
+	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    {
+		printf("%sError Creating Socket%s\n", KRED, KWHT);
+	}    
+    *master_sock = sock;
+}
+
+void socketOptionReuseAddr(int master_socket, int option)
+{
+    if(setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&option,
+               sizeof(option)) < 0)
+    {
+       perror("setsockopt");
+       exit(EXIT_FAILURE);
+    } 
+}
+
+void bindSocket(int sock, int port, char *ipAddr, int *server_addr_len)
+{
+	int x;
 	struct sockaddr_in server_addr;
 
 	memset(&server_addr, '\0', sizeof(server_addr));
@@ -148,9 +180,22 @@ int bind_socket(int sock, int port, char *ipAddr)
 
 	if(x < 0)
 		printf("%sSocket Bind Unsuccessful%s\n",KRED, KWHT);
-	
-	printf("%s[+]%sBind successful!\n", KGRN, KWHT);
-	return x;
+
+    else	
+	    printf("%s[+]%sBind successful!\n", KGRN, KWHT);
+
+    *server_addr_len = sizeof(server_addr);
+}
+
+void serverListen(int master_sock, int port, const int pending)
+{
+	if(listen(master_sock, 3) < 0)
+    {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("%sListening on port: %d\n%s", KYEL, port, KWHT);
 }
 
 int confirm_message(char *confirm, char *message)
